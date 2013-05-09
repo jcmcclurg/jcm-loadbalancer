@@ -230,11 +230,24 @@ void NodeHandler::notifyMutexReply(const int16_t fromPort) {
 }
 
 void NodeHandler::giveJobs(std::vector< Job > & _return, const int16_t numJobs) {
-  for(int i = 0; i < numJobs; i++){
-    Job j;
-    j.id = 0;
-    j.hopcount = 1;
-    _return.push_back(j);
+  boost::unique_lock<boost::mutex> lock(queueMutex);
+
+  int sz = queue.size();
+  int count = 0;
+  for(int i = 0; i < sz; i++){
+    if(count == numJobs){
+      break;
+    }
+    else if(queue[i-count].hopcount == 0){
+      DEBUG("Transfering job " << queue[i-count].id << ".");
+      queue[i-count].hopcount++;
+      _return.push_back(queue[i-count]);
+      queue.erase(queue.begin() + i - count);
+      count++;
+    }
+  }
+  if(count < numJobs){
+    DEBUG("Sorry bro. Ran out of jobs.");
   }
 }
 
